@@ -39,7 +39,7 @@
             <el-button type="danger" icon="el-icon-delete" size="mini" @click="removeUserById(scope.row.id)"></el-button>
             <!-- 分配角色按钮 -->
             <el-tooltip :enterable="false" effect="dark" content="分配角色" placement="top">
-              <el-button type="warning" icon="el-icon-setting" size="mini"></el-button>
+              <el-button type="warning" icon="el-icon-setting" size="mini" @click="showSetRolesDialog(scope.row)"></el-button>
             </el-tooltip>
           </template>
         </el-table-column>
@@ -89,21 +89,46 @@
       :visible.sync="editDialogVisible"
       width="50%">
       <!-- 内容主题区域 -->
-    <el-form :model="editForm" :rules="editFormRules" ref="editFormRef" label-width="80px">
-      <el-form-item label="用户名">
-        <el-input v-model="editForm.username" disabled></el-input>
-      </el-form-item>
-      <el-form-item label="邮箱" prop="email">
-        <el-input v-model="editForm.email"></el-input>
-      </el-form-item>
-      <el-form-item label="手机号" prop="mobile">
-        <el-input v-model="editForm.mobile"></el-input>
-      </el-form-item>
-    </el-form>
+      <el-form :model="editForm" :rules="editFormRules" ref="editFormRef" label-width="80px">
+        <el-form-item label="用户名">
+          <el-input v-model="editForm.username" disabled></el-input>
+        </el-form-item>
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="editForm.email"></el-input>
+        </el-form-item>
+        <el-form-item label="手机号" prop="mobile">
+          <el-input v-model="editForm.mobile"></el-input>
+        </el-form-item>
+      </el-form>
       <!-- 底部按钮区域 -->
       <span slot="footer" class="dialog-footer">
         <el-button @click="editDialogVisible = false">取 消</el-button>
         <el-button type="primary" @click="editUserInfo">确 定</el-button>
+      </span>
+    </el-dialog>
+     <!-- 分配角色对话框 -->
+    <el-dialog
+      @closed="clearSelect"
+      title="分配角色"
+      :visible.sync="setRolesDialogVisible"
+      width="50%">
+      <p>当前的用户: {{userInfo.username}}</p>
+      <p>当前的角色: {{userInfo.role_name}}</p>
+      <!-- label是显示的值,value是需要记录的东西,如果label不写,默认与value一致.. 肉眼看label 实际需要value -->
+      <div>
+        选择新角色:
+         <el-select v-model="selectValue" placeholder="请选择">
+          <el-option
+            v-for="item in rolesList"
+            :key="item.id"
+            :label="item.roleName"
+            :value="item.id">
+          </el-option>
+        </el-select>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="setRolesDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="setRoleSubmit">确 定</el-button>
       </span>
     </el-dialog>
   </div>
@@ -181,7 +206,11 @@ export default {
           { required: true, message: '请输入手机号', trigger: 'blur' },
           { validator: checkMobile, trigger: 'blur' }
         ]
-      }
+      },
+      userInfo: '',
+      rolesList: [],
+      selectValue: '',
+      setRolesDialogVisible: false
     }
   },
 
@@ -279,6 +308,28 @@ export default {
       if (res.meta.status !== 200) return this.$message.error('删除失败')
       this.$message.success('删除成功')
       this.getUserList()
+    },
+    // 点击分配角色
+    async showSetRolesDialog (userInfo) {
+      this.setRolesDialogVisible = true
+      this.userInfo = userInfo
+      const { data: res } = await this.$http.get('roles')
+      if (res.meta.status !== 200) return this.$message.error('获取失败')
+      this.rolesList = res.data
+      // console.log(this.rolesList)
+    },
+    async setRoleSubmit () {
+      if (!this.selectValue) return this.$message.info('请先选择角色')
+      const { data: res } = await this.$http.put(`users/${this.userInfo.id}/role`, {
+        rid: this.selectValue
+      })
+      if (res.meta.status !== 200) return this.$message.error('分配角色失败')
+      this.$message.success('分配成功')
+      this.setRolesDialogVisible = false
+      this.getUserList()
+    },
+    clearSelect () {
+      this.selectValue = ''
     }
   }
 }
